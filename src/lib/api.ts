@@ -51,8 +51,9 @@ function apiUrl(path: string) {
   return `${API_BASE}${path}`
 }
 
-const BACKEND_UNREACHABLE =
-  'Cannot reach the backend API. Start the server with: cd server && npm run dev'
+const BACKEND_UNREACHABLE = import.meta.env.PROD
+  ? 'Cannot reach the backend API. Check VITE_API_URL on Vercel and CORS_ORIGIN on Render, then redeploy both services.'
+  : 'Cannot reach the backend API. Start the server with: cd server && npm run dev'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response
