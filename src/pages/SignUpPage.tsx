@@ -3,11 +3,12 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
-import { getSupabaseConfigError, supabase } from '../lib/supabase'
+import { getSignUpVerifyUrl, getSupabaseConfigError, supabase } from '../lib/supabase'
 
-export function LoginPage() {
+export function SignUpPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(getSupabaseConfigError())
 
@@ -17,48 +18,66 @@ export function LoginPage() {
 
     const form = event.currentTarget
     const formData = new FormData(form)
+    const fullName = String(formData.get('name') ?? '').trim()
     const email = String(formData.get('email') ?? '').trim()
     const password = String(formData.get('password') ?? '')
+    const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
-    if (!email || !password) {
-      setError('Please enter your email and password.')
+    if (!fullName || !email || !password) {
+      setError('Please fill in all required fields.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
       return
     }
 
     setSubmitting(true)
     setError(null)
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: getSignUpVerifyUrl(),
+      },
     })
 
     setSubmitting(false)
 
-    if (signInError) {
-      if (signInError.message.toLowerCase().includes('email not confirmed')) {
-        navigate('/signup/check-email', { state: { email } })
-        return
-      }
-      setError(signInError.message)
+    if (signUpError) {
+      setError(signUpError.message)
       return
     }
 
-    if (!data.user?.email_confirmed_at) {
-      navigate('/signup/check-email', { state: { email } })
+    if (!data.user) {
+      setError('Sign-up could not be started. Please try again.')
       return
     }
 
-    navigate('/app')
+    // Email verification is part of sign-up: account stays pending until the link is opened.
+    if (data.session?.user.email_confirmed_at) {
+      navigate('/app')
+      return
+    }
+
+    navigate('/signup/check-email', { state: { email } })
   }
 
   return (
     <AuthLayout>
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-[#fafafa]">Sign in</h1>
+          <h1 className="text-lg font-semibold text-[#fafafa]">Sign up</h1>
           <p className="text-base text-[#fafafa]">
-            Enter your email below to sign in to your account
+            Sign-up includes email verification. Submit the form and we&apos;ll send a link to finish.
           </p>
         </div>
 
@@ -67,6 +86,21 @@ export function LoginPage() {
             {error}
           </p>
         ) : null}
+
+        <div className="space-y-2">
+          <label htmlFor="name" className="text-sm text-[#fafafa]">
+            Full name<span className="text-red-400">*</span>
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            autoComplete="name"
+            disabled={submitting}
+            className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+          />
+        </div>
 
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm text-[#fafafa]">
@@ -93,7 +127,8 @@ export function LoginPage() {
               name="password"
               type={showPassword ? 'text' : 'password'}
               required
-              autoComplete="current-password"
+              minLength={8}
+              autoComplete="new-password"
               disabled={submitting}
               className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 pr-10 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
             />
@@ -109,20 +144,47 @@ export function LoginPage() {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <label htmlFor="confirmPassword" className="text-sm text-[#fafafa]">
+            Confirm password<span className="text-red-400">*</span>
+          </label>
+          <div className="relative">
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              disabled={submitting}
+              className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 pr-10 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+            />
+            <button
+              type="button"
+              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showConfirmPassword}
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-400 hover:text-zinc-200"
+            >
+              <EyeIcon open={showConfirmPassword} />
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-3 pt-1">
           <button
             type="submit"
             disabled={submitting}
             className="h-10 w-full rounded-full bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? 'Signing in...' : 'Sign in'}
+            {submitting ? 'Starting sign-up...' : 'Sign up'}
           </button>
         </div>
 
         <p className="text-center text-sm text-[#fafafa]">
-          Don&apos;t have an account?{' '}
-          <Link to="/signup" className="text-blue-500 hover:text-blue-400">
-            Sign up
+          Already have an account?{' '}
+          <Link to="/login" className="text-blue-500 hover:text-blue-400">
+            Sign in
           </Link>
         </p>
       </form>
