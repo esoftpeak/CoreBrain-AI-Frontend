@@ -1,47 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthProvider'
-import { appUrl, supabase } from '../lib/supabase'
-
-type ProfileResponse = {
-  user: {
-    id: string
-    email: string | undefined
-    fullName: string | null
-  }
-}
+import { ApiError, api } from '../lib/api'
 
 export function AppPage() {
   const { user, signOut } = useAuth()
-  const [profile, setProfile] = useState<ProfileResponse | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
 
     async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        if (mounted) setError('No active session found.')
-        return
+      try {
+        const data = await api.getMe()
+        if (mounted) setFullName(data.user.fullName)
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof ApiError ? err.message : 'Could not load your profile from the API.')
+        }
       }
-
-      const response = await fetch('/api/me', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        if (mounted) setError('Could not load your profile from the API.')
-        return
-      }
-
-      const data = (await response.json()) as ProfileResponse
-      if (mounted) setProfile(data)
     }
 
     void loadProfile()
@@ -64,12 +42,11 @@ export function AppPage() {
             <span className="text-zinc-400">Email:</span> {user?.email}
           </p>
           <p>
-            <span className="text-zinc-400">Verified:</span>{' '}
-            {user?.email_confirmed_at ? 'Yes' : 'No'}
+            <span className="text-zinc-400">Verified:</span> {user?.emailConfirmed ? 'Yes' : 'No'}
           </p>
-          {profile ? (
+          {fullName !== null ? (
             <p>
-              <span className="text-zinc-400">Full name:</span> {profile.user.fullName ?? '—'}
+              <span className="text-zinc-400">Full name:</span> {fullName || '—'}
             </p>
           ) : null}
           {error ? <p className="text-red-300">{error}</p> : null}
@@ -83,12 +60,6 @@ export function AppPage() {
           >
             Sign out
           </button>
-          <a
-            href={appUrl}
-            className="inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100"
-          >
-            App home
-          </a>
           <Link to="/login" className="inline-flex h-10 items-center text-sm text-blue-400 hover:text-blue-300">
             Sign-in page
           </Link>

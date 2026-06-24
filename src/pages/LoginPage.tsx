@@ -3,17 +3,18 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
-import { getSupabaseConfigError, supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthProvider'
+import { ApiError, api } from '../lib/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { refreshSession } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(getSupabaseConfigError())
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(getSupabaseConfigError())
 
     const form = event.currentTarget
     const formData = new FormData(form)
@@ -28,28 +29,19 @@ export function LoginPage() {
     setSubmitting(true)
     setError(null)
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    setSubmitting(false)
-
-    if (signInError) {
-      if (signInError.message.toLowerCase().includes('email not confirmed')) {
-        navigate('/signup/check-email', { state: { email } })
+    try {
+      await api.signIn({ email, password })
+      await refreshSession()
+      navigate('/app')
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'EMAIL_NOT_CONFIRMED') {
+        navigate('/signup/check-email', { state: { email: err.email ?? email } })
         return
       }
-      setError(signInError.message)
-      return
+      setError(err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-
-    if (!data.user?.email_confirmed_at) {
-      navigate('/signup/check-email', { state: { email } })
-      return
-    }
-
-    navigate('/app')
   }
 
   return (

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
-import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthProvider'
+import { ApiError, api } from '../lib/api'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
 export function SignUpVerifyPage() {
+  const { refreshSession } = useAuth()
   const [status, setStatus] = useState<VerifyStatus>('verifying')
   const [message, setMessage] = useState('Verifying your email to finish sign-up...')
 
@@ -30,40 +32,33 @@ export function SignUpVerifyPage() {
       }
 
       const code = searchParams.get('code')
+      const accessToken = hashParams.get('access_token') ?? undefined
+      const refreshToken = hashParams.get('refresh_token') ?? undefined
 
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (!code && !(accessToken && refreshToken)) {
         if (!mounted) return
-
-        if (error) {
-          setStatus('error')
-          setMessage(error.message)
-          return
-        }
-      }
-
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
-
-      if (!mounted) return
-
-      if (sessionError) {
         setStatus('error')
-        setMessage(sessionError.message)
+        setMessage('This sign-up link is invalid or has expired. Start sign-up again to receive a new link.')
         return
       }
 
-      if (session?.user.email_confirmed_at) {
+      try {
+        await api.verify({
+          code: code ?? undefined,
+          accessToken,
+          refreshToken,
+        })
+        await refreshSession()
+
+        if (!mounted) return
         setStatus('success')
         setMessage('Your email is verified. Sign-up is complete.')
         window.history.replaceState({}, document.title, '/signup/verify')
-        return
+      } catch (err) {
+        if (!mounted) return
+        setStatus('error')
+        setMessage(err instanceof ApiError ? err.message : 'Verification failed. Please try again.')
       }
-
-      setStatus('error')
-      setMessage('This sign-up link is invalid or has expired. Start sign-up again to receive a new link.')
     }
 
     void finishSignUp()
@@ -71,7 +66,7 @@ export function SignUpVerifyPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [refreshSession])
 
   return (
     <AuthLayout>

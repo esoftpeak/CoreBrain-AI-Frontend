@@ -7,56 +7,49 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { api, type AuthUser } from '../lib/api'
 
 type AuthContextValue = {
-  session: Session | null
-  user: User | null
+  user: AuthUser | null
   loading: boolean
+  refreshSession: () => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let mounted = true
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setSession(data.session)
+  const refreshSession = useCallback(async () => {
+    try {
+      const { user: nextUser } = await api.getSession()
+      setUser(nextUser)
+    } catch {
+      setUser(null)
+    } finally {
       setLoading(false)
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setLoading(false)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
     }
   }, [])
 
+  useEffect(() => {
+    void refreshSession()
+  }, [refreshSession])
+
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut()
+    await api.signOut()
+    setUser(null)
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      session,
-      user: session?.user ?? null,
+      user,
       loading,
+      refreshSession,
       signOut,
     }),
-    [session, loading, signOut],
+    [user, loading, refreshSession, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

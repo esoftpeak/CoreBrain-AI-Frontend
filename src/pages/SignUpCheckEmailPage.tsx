@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
-import { getSignUpVerifyUrl, getSupabaseConfigError, supabase } from '../lib/supabase'
+import { ApiError, api } from '../lib/api'
 
 type CheckEmailLocationState = {
   email?: string
@@ -13,7 +13,7 @@ export function SignUpCheckEmailPage() {
   const email = state?.email
   const [resending, setResending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(getSupabaseConfigError())
+  const [error, setError] = useState<string | null>(null)
 
   if (!email) {
     return <Navigate to="/signup" replace />
@@ -26,22 +26,14 @@ export function SignUpCheckEmailPage() {
     setError(null)
     setMessage(null)
 
-    const { error: resendError } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: getSignUpVerifyUrl(),
-      },
-    })
-
-    setResending(false)
-
-    if (resendError) {
-      setError(resendError.message)
-      return
+    try {
+      await api.resendVerification(email)
+      setMessage('Verification email sent again. Open the link to complete your sign-up.')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not resend verification email.')
+    } finally {
+      setResending(false)
     }
-
-    setMessage('Verification email sent again. Open the link to complete your sign-up.')
   }
 
   return (

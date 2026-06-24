@@ -21,7 +21,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  if (!user.email_confirmed_at) {
+  if (!user.emailConfirmed) {
     return <Navigate to="/signup/check-email" replace state={{ email: user.email }} />
   }
 
@@ -43,7 +43,7 @@ export function GuestRoute({ children }: GuestRouteProps) {
     )
   }
 
-  if (user?.email_confirmed_at) {
+  if (user?.emailConfirmed) {
     return <Navigate to="/app" replace />
   }
 

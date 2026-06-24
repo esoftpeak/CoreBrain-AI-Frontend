@@ -3,18 +3,19 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
-import { getSignUpVerifyUrl, getSupabaseConfigError, supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthProvider'
+import { ApiError, api } from '../lib/api'
 
 export function SignUpPage() {
   const navigate = useNavigate()
+  const { refreshSession } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(getSupabaseConfigError())
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(getSupabaseConfigError())
 
     const form = event.currentTarget
     const formData = new FormData(form)
@@ -41,34 +42,21 @@ export function SignUpPage() {
     setSubmitting(true)
     setError(null)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: getSignUpVerifyUrl(),
-      },
-    })
+    try {
+      const result = await api.signUp({ fullName, email, password })
+      await refreshSession()
 
-    setSubmitting(false)
+      if (!result.needsEmailVerification && result.user.emailConfirmed) {
+        navigate('/app')
+        return
+      }
 
-    if (signUpError) {
-      setError(signUpError.message)
-      return
+      navigate('/signup/check-email', { state: { email } })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-
-    if (!data.user) {
-      setError('Sign-up could not be started. Please try again.')
-      return
-    }
-
-    // Email verification is part of sign-up: account stays pending until the link is opened.
-    if (data.session?.user.email_confirmed_at) {
-      navigate('/app')
-      return
-    }
-
-    navigate('/signup/check-email', { state: { email } })
   }
 
   return (
