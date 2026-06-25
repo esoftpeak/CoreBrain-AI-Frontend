@@ -5,6 +5,7 @@ import { authHeadingClass, authMutedTextClass, authPrimaryButtonClass, authSecon
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
+import { notifyVerificationComplete } from '../lib/auth-sync'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
@@ -57,6 +58,7 @@ export function SignUpVerifyPage() {
           refreshToken,
         })
         setSessionUser(user)
+        notifyVerificationComplete()
 
         if (!mounted) return
         setStatus('success')

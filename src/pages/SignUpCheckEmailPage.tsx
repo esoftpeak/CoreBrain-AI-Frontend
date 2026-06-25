@@ -9,6 +9,7 @@ import {
   authSuccessClass,
 } from '../components/auth/auth-classes'
 import { AuthLayout } from '../components/AuthLayout'
+import { useAwaitEmailVerification } from '../hooks/useAwaitEmailVerification'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
@@ -24,6 +25,8 @@ export function SignUpCheckEmailPage() {
   const [resending, setResending] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useAwaitEmailVerification()
 
   if (!email) {
     return <Navigate to="/signup" replace />
@@ -60,9 +63,14 @@ export function SignUpCheckEmailPage() {
         </div>
 
         <p className={authMutedTextClass}>
-          Open the link in that email to verify your address. That link is the final step of sign-up, not a
-          separate registration step.
+          Open the link in that email in a new tab. This page will update automatically and take you to your
+          dashboard as soon as verification completes.
         </p>
+
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--db-border)] bg-[var(--db-bg)] px-4 py-3">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--db-border)] border-t-[var(--db-active-icon)]" />
+          <p className="text-sm text-[var(--db-muted)]">Waiting for email verification...</p>
+        </div>
 
         {error ? (
           <p className={authErrorClass} role="alert">

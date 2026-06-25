@@ -39,6 +39,7 @@ function App() {
           <Route path="/signup/check-email" element={<SignUpCheckEmailPage />} />
           <Route path="/signup/verify" element={<SignUpVerifyPage />} />
           <Route path="/auth/verify" element={<SignUpVerifyPage />} />
+          <Route path="/auth/callback" element={<SignUpVerifyPage />} />
           <Route
             path="/dashboard"
             element={
