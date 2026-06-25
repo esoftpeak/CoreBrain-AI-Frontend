@@ -19,7 +19,7 @@ import { ApiError, api } from '../lib/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { refreshSession } = useAuth()
+  const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -44,10 +44,10 @@ export function LoginPage() {
     setError(null)
 
     try {
-      await api.signIn({ email: trimmedEmail, password })
-      await refreshSession()
-      showToast('Signed in successfully.', 'success')
+      const { user } = await api.signIn({ email: trimmedEmail, password })
+      setSessionUser(user)
       navigate('/dashboard')
+      showToast('Signed in successfully.', 'success')
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_CONFIRMED') {
         showToast('Please verify your email before signing in.', 'info')

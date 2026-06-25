@@ -19,7 +19,7 @@ import { ApiError, api } from '../lib/api'
 
 export function SignUpPage() {
   const navigate = useNavigate()
-  const { refreshSession } = useAuth()
+  const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -67,16 +67,16 @@ export function SignUpPage() {
 
     try {
       const result = await api.signUp({ fullName: trimmedName, email: trimmedEmail, password })
-      await refreshSession()
+      setSessionUser(result.user)
 
       if (!result.needsEmailVerification && result.user.emailConfirmed) {
-        showToast('Account created successfully.', 'success')
         navigate('/dashboard')
+        showToast('Account created successfully.', 'success')
         return
       }
 
-      showToast('Sign-up started. Check your email to verify your account.', 'success')
       navigate('/signup/check-email', { state: { email: trimmedEmail } })
+      showToast('Sign-up started. Check your email to verify your account.', 'success')
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.'
       setError(message)

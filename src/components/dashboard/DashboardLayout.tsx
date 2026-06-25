@@ -50,7 +50,7 @@ export function DashboardLayout() {
   }
 
   async function handleSignOut() {
-    await signOut()
+    void signOut()
     showToast('Signed out successfully.', 'success')
   }
 

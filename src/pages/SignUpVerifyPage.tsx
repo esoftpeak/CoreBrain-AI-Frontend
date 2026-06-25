@@ -9,7 +9,7 @@ import { ApiError, api } from '../lib/api'
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
 export function SignUpVerifyPage() {
-  const { refreshSession } = useAuth()
+  const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [status, setStatus] = useState<VerifyStatus>('verifying')
   const [message, setMessage] = useState('Verifying your email to finish sign-up...')
@@ -54,12 +54,12 @@ export function SignUpVerifyPage() {
       }
 
       try {
-        await api.verify({
+        const { user } = await api.verify({
           code: code ?? undefined,
           accessToken,
           refreshToken,
         })
-        await refreshSession()
+        setSessionUser(user)
 
         if (!mounted) return
         setStatus('success')
@@ -77,7 +77,7 @@ export function SignUpVerifyPage() {
     return () => {
       mounted = false
     }
-  }, [refreshSession])
+  }, [setSessionUser])
 
   return (
     <AuthLayout>

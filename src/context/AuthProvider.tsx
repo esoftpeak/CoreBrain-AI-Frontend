@@ -12,6 +12,7 @@ import { api, type AuthUser } from '../lib/api'
 type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
+  setSessionUser: (user: AuthUser | null) => void
   refreshSession: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -21,6 +22,11 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const setSessionUser = useCallback((nextUser: AuthUser | null) => {
+    setUser(nextUser)
+    setLoading(false)
+  }, [])
 
   const refreshSession = useCallback(async () => {
     try {
@@ -38,18 +44,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession])
 
   const signOut = useCallback(async () => {
-    await api.signOut()
     setUser(null)
+    try {
+      await api.signOut()
+    } catch {
+      // Local session is already cleared; cookie cleanup can retry on next visit.
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
+      setSessionUser,
       refreshSession,
       signOut,
     }),
-    [user, loading, refreshSession, signOut],
+    [user, loading, setSessionUser, refreshSession, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
