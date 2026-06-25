@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
+import { authHeadingClass, authMutedTextClass, authPrimaryButtonClass, authSecondaryButtonClass } from '../components/auth/auth-classes'
 import { useAuth } from '../context/AuthProvider'
+import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
 export function SignUpVerifyPage() {
   const { refreshSession } = useAuth()
+  const { showToast } = useToast()
   const [status, setStatus] = useState<VerifyStatus>('verifying')
   const [message, setMessage] = useState('Verifying your email to finish sign-up...')
+
+  useEffect(() => {
+    if (status === 'success') {
+      showToast(message, 'success')
+    } else if (status === 'error') {
+      showToast(message, 'error')
+    }
+  }, [message, showToast, status])
 
   useEffect(() => {
     let mounted = true
@@ -75,8 +86,8 @@ export function SignUpVerifyPage() {
           <>
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-200" />
             <div className="space-y-1">
-              <h1 className="text-lg font-semibold text-[#fafafa]">Finishing sign-up</h1>
-              <p className="text-base text-zinc-300">{message}</p>
+              <h1 className={authHeadingClass}>Finishing sign-up</h1>
+              <p className={authMutedTextClass}>{message}</p>
             </div>
           </>
         ) : null}
@@ -89,13 +100,10 @@ export function SignUpVerifyPage() {
               </svg>
             </div>
             <div className="space-y-1">
-              <h1 className="text-lg font-semibold text-[#fafafa]">Sign-up complete</h1>
-              <p className="text-base text-zinc-300">{message}</p>
+              <h1 className={authHeadingClass}>Sign-up complete</h1>
+              <p className={authMutedTextClass}>{message}</p>
             </div>
-            <Link
-              to="/login"
-              className="inline-flex h-10 w-full items-center justify-center rounded-full bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100"
-            >
+            <Link to="/login" className={`inline-flex ${authPrimaryButtonClass}`}>
               Continue to sign in
             </Link>
           </>
@@ -110,19 +118,16 @@ export function SignUpVerifyPage() {
               </svg>
             </div>
             <div className="space-y-1">
-              <h1 className="text-lg font-semibold text-[#fafafa]">Sign-up not completed</h1>
-              <p className="text-base text-zinc-300">{message}</p>
+              <h1 className={authHeadingClass}>Sign-up not completed</h1>
+              <p className={authMutedTextClass}>{message}</p>
             </div>
             <div className="space-y-3">
-              <Link
-                to="/signup"
-                className="inline-flex h-10 w-full items-center justify-center rounded-full bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100"
-              >
+              <Link to="/signup" className={`inline-flex ${authPrimaryButtonClass}`}>
                 Start sign-up again
               </Link>
               <Link
                 to="/login"
-                className="inline-flex h-10 w-full items-center justify-center rounded-full border border-zinc-800 bg-transparent text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-900"
+                className={`inline-flex ${authSecondaryButtonClass}`}
               >
                 Back to sign in
               </Link>

@@ -44,7 +44,7 @@ export function GuestRoute({ children }: GuestRouteProps) {
   }
 
   if (user?.emailConfirmed) {
-    return <Navigate to="/app" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return children

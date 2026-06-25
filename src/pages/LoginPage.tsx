@@ -1,28 +1,42 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  authErrorClass,
+  authHeadingClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+  authPrimaryButtonClass,
+  authRequiredClass,
+  authSubheadingClass,
+} from '../components/auth/auth-classes'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
 import { useAuth } from '../context/AuthProvider'
+import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { refreshSession } = useAuth()
+  const { showToast } = useToast()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isFormReady = email.trim().length > 0 && password.length > 0
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const form = event.currentTarget
-    const formData = new FormData(form)
-    const email = String(formData.get('email') ?? '').trim()
-    const password = String(formData.get('password') ?? '')
+    const trimmedEmail = email.trim()
 
-    if (!email || !password) {
-      setError('Please enter your email and password.')
+    if (!trimmedEmail || !password) {
+      const message = 'Please enter your email and password.'
+      setError(message)
+      showToast(message, 'error')
       return
     }
 
@@ -30,15 +44,19 @@ export function LoginPage() {
     setError(null)
 
     try {
-      await api.signIn({ email, password })
+      await api.signIn({ email: trimmedEmail, password })
       await refreshSession()
-      navigate('/app')
+      showToast('Signed in successfully.', 'success')
+      navigate('/dashboard')
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_NOT_CONFIRMED') {
-        navigate('/signup/check-email', { state: { email: err.email ?? email } })
+        showToast('Please verify your email before signing in.', 'info')
+        navigate('/signup/check-email', { state: { email: err.email ?? trimmedEmail } })
         return
       }
-      setError(err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.')
+      const message = err instanceof ApiError ? err.message : 'Sign-in failed. Please try again.'
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setSubmitting(false)
     }
@@ -48,21 +66,19 @@ export function LoginPage() {
     <AuthLayout>
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-[#fafafa]">Sign in</h1>
-          <p className="text-base text-[#fafafa]">
-            Enter your email below to sign in to your account
-          </p>
+          <h1 className={authHeadingClass}>Sign in</h1>
+          <p className={authSubheadingClass}>Enter your email below to sign in to your account</p>
         </div>
 
         {error ? (
-          <p className="rounded border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300" role="alert">
+          <p className={authErrorClass} role="alert">
             {error}
           </p>
         ) : null}
 
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm text-[#fafafa]">
-            Email<span className="text-red-400">*</span>
+          <label htmlFor="email" className={authLabelClass}>
+            Email<span className={authRequiredClass}>*</span>
           </label>
           <input
             id="email"
@@ -71,13 +87,15 @@ export function LoginPage() {
             required
             autoComplete="email"
             disabled={submitting}
-            className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={authInputClass}
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm text-[#fafafa]">
-            Password<span className="text-red-400">*</span>
+          <label htmlFor="password" className={authLabelClass}>
+            Password<span className={authRequiredClass}>*</span>
           </label>
           <div className="relative">
             <input
@@ -87,33 +105,29 @@ export function LoginPage() {
               required
               autoComplete="current-password"
               disabled={submitting}
-              className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 pr-10 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className={`${authInputClass} pr-10`}
             />
             <button
               type="button"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showPassword}
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-400 hover:text-zinc-200"
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--db-muted)] transition-colors duration-200 hover:text-[var(--db-text)]"
             >
               <EyeIcon open={showPassword} />
             </button>
           </div>
         </div>
 
-        <div className="space-y-3 pt-1">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="h-10 w-full rounded-full bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </div>
+        <button type="submit" disabled={submitting || !isFormReady} className={authPrimaryButtonClass}>
+          {submitting ? 'Signing in...' : 'Sign in'}
+        </button>
 
-        <p className="text-center text-sm text-[#fafafa]">
+        <p className="text-center text-sm text-[var(--db-muted)]">
           Don&apos;t have an account?{' '}
-          <Link to="/signup" className="text-blue-500 hover:text-blue-400">
+          <Link to="/signup" className={authLinkClass}>
             Sign up
           </Link>
         </p>

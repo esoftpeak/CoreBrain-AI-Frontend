@@ -1,6 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ToastContainer } from './components/ToastContainer'
 import { GuestRoute, ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
+import { ThemeProvider } from './context/ThemeProvider'
+import { ToastProvider } from './context/ToastProvider'
 import { AppPage } from './pages/AppPage'
 import { SignUpVerifyPage } from './pages/SignUpVerifyPage'
 import { LoginPage } from './pages/LoginPage'
@@ -9,9 +12,11 @@ import { SignUpPage } from './pages/SignUpPage'
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+          <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route
             path="/login"
@@ -34,16 +39,19 @@ function App() {
           <Route path="/signup/verify" element={<SignUpVerifyPage />} />
           <Route path="/auth/verify" element={<SignUpVerifyPage />} />
           <Route
-            path="/app"
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <AppPage />
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+          </Routes>
+          <ToastContainer />
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
   )
 }
 

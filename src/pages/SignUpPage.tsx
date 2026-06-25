@@ -1,41 +1,64 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  authErrorClass,
+  authHeadingClass,
+  authInputClass,
+  authLabelClass,
+  authLinkClass,
+  authPrimaryButtonClass,
+  authRequiredClass,
+  authSubheadingClass,
+} from '../components/auth/auth-classes'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
 import { useAuth } from '../context/AuthProvider'
+import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
 export function SignUpPage() {
   const navigate = useNavigate()
   const { refreshSession } = useAuth()
+  const { showToast } = useToast()
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isFormReady =
+    fullName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const form = event.currentTarget
-    const formData = new FormData(form)
-    const fullName = String(formData.get('name') ?? '').trim()
-    const email = String(formData.get('email') ?? '').trim()
-    const password = String(formData.get('password') ?? '')
-    const confirmPassword = String(formData.get('confirmPassword') ?? '')
+    const trimmedName = fullName.trim()
+    const trimmedEmail = email.trim()
 
-    if (!fullName || !email || !password) {
-      setError('Please fill in all required fields.')
+    if (!trimmedName || !trimmedEmail || !password) {
+      const message = 'Please fill in all required fields.'
+      setError(message)
+      showToast(message, 'error')
       return
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.')
+      const message = 'Passwords do not match.'
+      setError(message)
+      showToast(message, 'error')
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+      const message = 'Password must be at least 8 characters.'
+      setError(message)
+      showToast(message, 'error')
       return
     }
 
@@ -43,17 +66,21 @@ export function SignUpPage() {
     setError(null)
 
     try {
-      const result = await api.signUp({ fullName, email, password })
+      const result = await api.signUp({ fullName: trimmedName, email: trimmedEmail, password })
       await refreshSession()
 
       if (!result.needsEmailVerification && result.user.emailConfirmed) {
-        navigate('/app')
+        showToast('Account created successfully.', 'success')
+        navigate('/dashboard')
         return
       }
 
-      navigate('/signup/check-email', { state: { email } })
+      showToast('Sign-up started. Check your email to verify your account.', 'success')
+      navigate('/signup/check-email', { state: { email: trimmedEmail } })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.')
+      const message = err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.'
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setSubmitting(false)
     }
@@ -63,21 +90,21 @@ export function SignUpPage() {
     <AuthLayout>
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-[#fafafa]">Sign up</h1>
-          <p className="text-base text-[#fafafa]">
+          <h1 className={authHeadingClass}>Sign up</h1>
+          <p className={authSubheadingClass}>
             Sign-up includes email verification. Submit the form and we&apos;ll send a link to finish.
           </p>
         </div>
 
         {error ? (
-          <p className="rounded border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300" role="alert">
+          <p className={authErrorClass} role="alert">
             {error}
           </p>
         ) : null}
 
         <div className="space-y-2">
-          <label htmlFor="name" className="text-sm text-[#fafafa]">
-            Full name<span className="text-red-400">*</span>
+          <label htmlFor="name" className={authLabelClass}>
+            Full name<span className={authRequiredClass}>*</span>
           </label>
           <input
             id="name"
@@ -86,13 +113,15 @@ export function SignUpPage() {
             required
             autoComplete="name"
             disabled={submitting}
-            className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+            className={authInputClass}
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm text-[#fafafa]">
-            Email<span className="text-red-400">*</span>
+          <label htmlFor="email" className={authLabelClass}>
+            Email<span className={authRequiredClass}>*</span>
           </label>
           <input
             id="email"
@@ -101,13 +130,15 @@ export function SignUpPage() {
             required
             autoComplete="email"
             disabled={submitting}
-            className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={authInputClass}
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm text-[#fafafa]">
-            Password<span className="text-red-400">*</span>
+          <label htmlFor="password" className={authLabelClass}>
+            Password<span className={authRequiredClass}>*</span>
           </label>
           <div className="relative">
             <input
@@ -118,14 +149,16 @@ export function SignUpPage() {
               minLength={8}
               autoComplete="new-password"
               disabled={submitting}
-              className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 pr-10 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className={`${authInputClass} pr-10`}
             />
             <button
               type="button"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showPassword}
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-400 hover:text-zinc-200"
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--db-muted)] transition-colors duration-200 hover:text-[var(--db-text)]"
             >
               <EyeIcon open={showPassword} />
             </button>
@@ -133,8 +166,8 @@ export function SignUpPage() {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="text-sm text-[#fafafa]">
-            Confirm password<span className="text-red-400">*</span>
+          <label htmlFor="confirmPassword" className={authLabelClass}>
+            Confirm password<span className={authRequiredClass}>*</span>
           </label>
           <div className="relative">
             <input
@@ -145,33 +178,29 @@ export function SignUpPage() {
               minLength={8}
               autoComplete="new-password"
               disabled={submitting}
-              className="h-10 w-full rounded border border-zinc-800 bg-transparent px-3 pr-10 text-sm text-[#fafafa] outline-none focus:border-zinc-600 disabled:opacity-60"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className={`${authInputClass} pr-10`}
             />
             <button
               type="button"
               aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showConfirmPassword}
               onClick={() => setShowConfirmPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-400 hover:text-zinc-200"
+              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--db-muted)] transition-colors duration-200 hover:text-[var(--db-text)]"
             >
               <EyeIcon open={showConfirmPassword} />
             </button>
           </div>
         </div>
 
-        <div className="space-y-3 pt-1">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="h-10 w-full rounded-full bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? 'Starting sign-up...' : 'Sign up'}
-          </button>
-        </div>
+        <button type="submit" disabled={submitting || !isFormReady} className={authPrimaryButtonClass}>
+          {submitting ? 'Starting sign-up...' : 'Sign up'}
+        </button>
 
-        <p className="text-center text-sm text-[#fafafa]">
+        <p className="text-center text-sm text-[var(--db-muted)]">
           Already have an account?{' '}
-          <Link to="/login" className="text-blue-500 hover:text-blue-400">
+          <Link to="/login" className={authLinkClass}>
             Sign in
           </Link>
         </p>

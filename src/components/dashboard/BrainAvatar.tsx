@@ -1,9 +1,9 @@
-type LogoProps = {
+type BrainAvatarProps = {
   size?: number
   className?: string
 }
 
-export function Logo({ size = 192, className = '' }: LogoProps) {
+export function BrainAvatar({ size = 28, className = '' }: BrainAvatarProps) {
   return (
     <div
       className={`shrink-0 overflow-hidden rounded-full ${className}`}
@@ -11,7 +11,7 @@ export function Logo({ size = 192, className = '' }: LogoProps) {
     >
       <img
         src="/brain-logo.png"
-        alt="CoreBrain.ai"
+        alt="CoreBrain"
         width={size}
         height={size}
         className="block h-full w-full object-cover"
