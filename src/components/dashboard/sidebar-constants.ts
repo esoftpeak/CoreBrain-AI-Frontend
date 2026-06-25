@@ -1,6 +1,9 @@
 export const SIDEBAR_STORAGE_KEY = 'corebrain-sidebar-width'
 
 export const SIDEBAR_MINI_WIDTH = 64
+export const SIDEBAR_BRAND_LOGO_SIZE = 40
+export const SIDEBAR_MINI_LOGO_SIZE = 30
+export const SIDEBAR_NAV_TOP_OFFSET_PX = 16
 /** Narrowest expanded sidebar (matches minimum comfortable layout). */
 export const SIDEBAR_MIN_WIDTH = 200
 export const SIDEBAR_DEFAULT_WIDTH = 240

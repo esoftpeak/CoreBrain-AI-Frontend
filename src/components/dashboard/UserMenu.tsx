@@ -21,8 +21,8 @@ export function UserMenu({
 }: UserMenuProps) {
   const menuId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
-  const displayName = userName ?? userEmail ?? 'Account'
-  const emailInitial = (userEmail ?? userName ?? 'A').charAt(0).toUpperCase()
+  const displayName = userName?.trim() || null
+  const avatarInitial = (userName?.trim() || userEmail || 'A').charAt(0).toUpperCase()
 
   useEffect(() => {
     if (!open) return
@@ -56,7 +56,7 @@ export function UserMenu({
 
   const avatar = (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-sm font-semibold text-white">
-      {emailInitial}
+      {avatarInitial}
     </span>
   )
 
@@ -76,12 +76,9 @@ export function UserMenu({
         }
       >
         {avatar}
-        {!compact ? (
+        {!compact && displayName ? (
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-[var(--db-text)]">{displayName}</span>
-            {userEmail && userName ? (
-              <span className="block truncate text-xs text-[var(--db-muted)]">{userEmail}</span>
-            ) : null}
           </span>
         ) : null}
       </RippleButton>

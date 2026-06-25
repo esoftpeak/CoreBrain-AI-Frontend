@@ -2,7 +2,7 @@ import { BrainAvatar } from './BrainAvatar'
 import { DASHBOARD_TABS, type DashboardTabId } from './dashboard-data'
 import { IconChevronRight, IconClose, IconPanelLeft } from './icons'
 import { RippleButton } from './RippleButton'
-import { SIDEBAR_MINI_WIDTH } from './sidebar-constants'
+import { SIDEBAR_MINI_WIDTH, SIDEBAR_BRAND_LOGO_SIZE, SIDEBAR_MINI_LOGO_SIZE, SIDEBAR_NAV_TOP_OFFSET_PX } from './sidebar-constants'
 import { useSidebarResize } from './useSidebarResize'
 import { UserMenu } from './UserMenu'
 
@@ -25,6 +25,7 @@ type DashboardSidebarProps = {
 
 const SITE_TITLE = 'CoreBrain.ai'
 const ICON_SIZE = 'h-[23px] w-[23px]'
+const BRAND_TITLE_CLASS = 'text-xl font-bold leading-tight tracking-tight'
 
 export function DashboardSidebar({
   activeTab,
@@ -89,16 +90,16 @@ export function DashboardSidebar({
 
   const sidebarHeader = (
     <div
-      className={`flex h-[var(--db-header-h)] shrink-0 items-center ${
-        isMini ? 'justify-center' : 'gap-2.5 pl-6 pr-3'
+      className={`flex shrink-0 items-center ${
+        isMini ? 'h-[var(--db-header-h)] justify-center' : 'gap-3 py-4 pl-6 pr-3'
       }`}
     >
       {isMini ? (
-        <BrainAvatar size={26} />
+        <BrainAvatar size={SIDEBAR_MINI_LOGO_SIZE} />
       ) : (
         <>
-          <BrainAvatar size={26} />
-          <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[var(--db-text)]">{SITE_TITLE}</h1>
+          <BrainAvatar size={SIDEBAR_BRAND_LOGO_SIZE} />
+          <h1 className={`min-w-0 flex-1 truncate text-[var(--db-text)] ${BRAND_TITLE_CLASS}`}>{SITE_TITLE}</h1>
           {collapseButton}
         </>
       )}
@@ -106,8 +107,12 @@ export function DashboardSidebar({
   )
 
   const sidebarNav = (
-    <nav className="flex-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Dashboard navigation">
-      <ul className={isMini ? 'flex flex-col items-center gap-1' : ''}>
+    <nav
+      className={`flex-1 overflow-y-auto overflow-x-hidden pb-2 ${showInlineFull ? '' : isMini ? 'pt-2' : ''}`}
+      style={showInlineFull ? { paddingTop: SIDEBAR_NAV_TOP_OFFSET_PX } : undefined}
+      aria-label="Dashboard navigation"
+    >
+      <ul className={isMini ? 'flex flex-col items-center gap-1 pl-2' : ''}>
         {DASHBOARD_TABS.map((tab) => {
           const Icon = tab.icon
           const isActive = tab.id === activeTab
@@ -125,7 +130,7 @@ export function DashboardSidebar({
                           ? 'bg-[var(--db-active-bg)] text-[var(--db-active-icon)]'
                           : 'text-[var(--db-muted)] hover:bg-[var(--db-hover)] hover:text-[var(--db-text)]'
                       }`
-                    : `w-full gap-3 px-6 py-2 ${
+                    : `w-full gap-3 py-2 pl-8 pr-6 ${
                         isActive
                           ? 'bg-[var(--db-active-bg)] text-[var(--db-active-text)]'
                           : 'text-[var(--db-muted)] hover:bg-[var(--db-hover)] hover:text-[var(--db-text)]'
@@ -186,9 +191,9 @@ export function DashboardSidebar({
           overlayOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-[var(--db-header-h)] shrink-0 items-center gap-2.5 pl-6 pr-4">
-          <BrainAvatar size={26} />
-          <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[var(--db-text)]">{SITE_TITLE}</h1>
+        <div className="flex shrink-0 items-center gap-3 py-4 pl-6 pr-4">
+          <BrainAvatar size={SIDEBAR_BRAND_LOGO_SIZE} />
+          <h1 className={`min-w-0 flex-1 truncate text-[var(--db-text)] ${BRAND_TITLE_CLASS}`}>{SITE_TITLE}</h1>
           <RippleButton
             type="button"
             aria-label="Close sidebar"
@@ -199,7 +204,11 @@ export function DashboardSidebar({
             <IconClose className="h-4 w-4" />
           </RippleButton>
         </div>
-        <nav className="flex-1 overflow-y-auto pb-2" aria-label="Dashboard navigation">
+        <nav
+          className="flex-1 overflow-y-auto pb-2"
+          style={{ paddingTop: SIDEBAR_NAV_TOP_OFFSET_PX }}
+          aria-label="Dashboard navigation"
+        >
           <ul>
             {DASHBOARD_TABS.map((tab) => {
               const Icon = tab.icon
@@ -209,7 +218,7 @@ export function DashboardSidebar({
                   <RippleButton
                     type="button"
                     onClick={() => handleTabSelect(tab.id)}
-                    className={`flex w-full items-center gap-3 px-6 py-2 text-left text-sm font-medium transition-colors duration-200 ${
+                    className={`flex w-full items-center gap-3 py-2 pl-8 pr-6 text-left text-sm font-medium transition-colors duration-200 ${
                       isActive
                         ? 'bg-[var(--db-active-bg)] text-[var(--db-active-text)]'
                         : 'text-[var(--db-muted)] hover:bg-[var(--db-hover)] hover:text-[var(--db-text)]'

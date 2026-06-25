@@ -7,10 +7,12 @@ import { ChatWindow } from './ChatWindow'
 import { DashboardMobileHeader } from './DashboardMobileHeader'
 import { DashboardSidebar } from './DashboardSidebar'
 import { readStoredSidebarWidth } from './sidebar-constants'
+import { useResolvedDisplayName } from '../../hooks/useResolvedDisplayName'
 import { useMediaQuery } from './useMediaQuery'
 
 export function DashboardLayout() {
   const { user, signOut } = useAuth()
+  const displayName = useResolvedDisplayName()
   const { theme } = useTheme()
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<DashboardTabId>('dashboard')
@@ -67,7 +69,7 @@ export function DashboardLayout() {
           navOpen={mobileNavOpen}
           onNavOpenChange={setMobileNavOpen}
           onSignOut={handleSignOut}
-          userName={user?.fullName}
+          userName={displayName}
           userEmail={user?.email}
           userMenuOpen={userMenuOpen}
           onUserMenuOpenChange={setUserMenuOpen}
@@ -84,7 +86,7 @@ export function DashboardLayout() {
           onExpand={handleExpandSidebar}
           onCollapse={handleCollapseSidebar}
           onSignOut={handleSignOut}
-          userName={user?.fullName}
+          userName={displayName}
           userEmail={user?.email}
           userMenuOpen={userMenuOpen}
           onUserMenuOpenChange={setUserMenuOpen}

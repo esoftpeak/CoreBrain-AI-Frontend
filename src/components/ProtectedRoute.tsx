@@ -5,16 +5,20 @@ type ProtectedRouteProps = {
   children: React.ReactNode
 }
 
+function RouteSpinner() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#0f1115] text-[#fafafa]">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-orange-500" />
+    </div>
+  )
+}
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-[#fafafa]">
-        Loading...
-      </div>
-    )
+    return <RouteSpinner />
   }
 
   if (!user) {
@@ -36,11 +40,7 @@ export function GuestRoute({ children }: GuestRouteProps) {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-[#fafafa]">
-        Loading...
-      </div>
-    )
+    return <RouteSpinner />
   }
 
   if (user?.emailConfirmed) {

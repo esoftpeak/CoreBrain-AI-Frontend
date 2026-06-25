@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { api, type AuthUser } from '../lib/api'
+import { readCachedUser, writeCachedUser } from '../lib/auth-cache'
 
 type AuthContextValue = {
   user: AuthUser | null
@@ -20,11 +21,13 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cachedUser = readCachedUser()
+  const [user, setUser] = useState<AuthUser | null>(cachedUser)
+  const [loading, setLoading] = useState(!cachedUser)
 
   const setSessionUser = useCallback((nextUser: AuthUser | null) => {
     setUser(nextUser)
+    writeCachedUser(nextUser)
     setLoading(false)
   }, [])
 
@@ -32,8 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user: nextUser } = await api.getSession()
       setUser(nextUser)
+      writeCachedUser(nextUser)
     } catch {
       setUser(null)
+      writeCachedUser(null)
     } finally {
       setLoading(false)
     }
@@ -45,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setUser(null)
+    writeCachedUser(null)
     try {
       await api.signOut()
     } catch {
