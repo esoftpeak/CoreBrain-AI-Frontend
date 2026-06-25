@@ -117,7 +117,14 @@ export const api = {
     return request<{ ok: boolean }>('/api/auth/signout', { method: 'POST' })
   },
 
-  verify(body: { code?: string; accessToken?: string; refreshToken?: string }) {
+  verify(body: {
+    code?: string
+    token_hash?: string
+    token?: string
+    type?: string
+    accessToken?: string
+    refreshToken?: string
+  }) {
     return request<VerifyResponse>('/api/auth/verify', {
       method: 'POST',
       body: JSON.stringify(body),

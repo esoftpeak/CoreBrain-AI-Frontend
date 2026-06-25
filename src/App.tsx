@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthCallbackRedirect } from './components/AuthCallbackRedirect'
 import { ToastContainer } from './components/ToastContainer'
 import { GuestRoute, ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthProvider'
@@ -17,7 +18,7 @@ function App() {
         <AuthProvider>
           <BrowserRouter>
           <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<AuthCallbackRedirect />} />
           <Route
             path="/login"
             element={

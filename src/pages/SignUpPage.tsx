@@ -67,9 +67,9 @@ export function SignUpPage() {
 
     try {
       const result = await api.signUp({ fullName: trimmedName, email: trimmedEmail, password })
-      setSessionUser(result.user)
 
       if (!result.needsEmailVerification && result.user.emailConfirmed) {
+        setSessionUser(result.user)
         navigate('/dashboard')
         showToast('Account created successfully.', 'success')
         return

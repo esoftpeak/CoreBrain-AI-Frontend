@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
 import { authHeadingClass, authMutedTextClass, authPrimaryButtonClass, authSecondaryButtonClass } from '../components/auth/auth-classes'
 import { useAuth } from '../context/AuthProvider'
@@ -9,18 +9,11 @@ import { ApiError, api } from '../lib/api'
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
 export function SignUpVerifyPage() {
+  const navigate = useNavigate()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [status, setStatus] = useState<VerifyStatus>('verifying')
   const [message, setMessage] = useState('Verifying your email to finish sign-up...')
-
-  useEffect(() => {
-    if (status === 'success') {
-      showToast(message, 'success')
-    } else if (status === 'error') {
-      showToast(message, 'error')
-    }
-  }, [message, showToast, status])
 
   useEffect(() => {
     let mounted = true
@@ -43,10 +36,12 @@ export function SignUpVerifyPage() {
       }
 
       const code = searchParams.get('code')
+      const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token')
+      const verifyType = searchParams.get('type') ?? 'signup'
       const accessToken = hashParams.get('access_token') ?? undefined
       const refreshToken = hashParams.get('refresh_token') ?? undefined
 
-      if (!code && !(accessToken && refreshToken)) {
+      if (!code && !tokenHash && !(accessToken && refreshToken)) {
         if (!mounted) return
         setStatus('error')
         setMessage('This sign-up link is invalid or has expired. Start sign-up again to receive a new link.')
@@ -56,6 +51,8 @@ export function SignUpVerifyPage() {
       try {
         const { user } = await api.verify({
           code: code ?? undefined,
+          token_hash: tokenHash ?? undefined,
+          type: verifyType,
           accessToken,
           refreshToken,
         })
@@ -63,12 +60,16 @@ export function SignUpVerifyPage() {
 
         if (!mounted) return
         setStatus('success')
-        setMessage('Your email is verified. Sign-up is complete.')
+        setMessage('Your email is verified. Taking you to your dashboard...')
         window.history.replaceState({}, document.title, '/signup/verify')
+        showToast('Sign-up complete. Welcome to CoreBrain.ai!', 'success')
+        navigate('/dashboard', { replace: true })
       } catch (err) {
         if (!mounted) return
         setStatus('error')
-        setMessage(err instanceof ApiError ? err.message : 'Verification failed. Please try again.')
+        const errorMessage = err instanceof ApiError ? err.message : 'Verification failed. Please try again.'
+        setMessage(errorMessage)
+        showToast(errorMessage, 'error')
       }
     }
 
@@ -77,7 +78,7 @@ export function SignUpVerifyPage() {
     return () => {
       mounted = false
     }
-  }, [setSessionUser])
+  }, [navigate, setSessionUser, showToast])
 
   return (
     <AuthLayout>
@@ -103,9 +104,6 @@ export function SignUpVerifyPage() {
               <h1 className={authHeadingClass}>Sign-up complete</h1>
               <p className={authMutedTextClass}>{message}</p>
             </div>
-            <Link to="/login" className={`inline-flex ${authPrimaryButtonClass}`}>
-              Continue to sign in
-            </Link>
           </>
         ) : null}
 
@@ -125,10 +123,7 @@ export function SignUpVerifyPage() {
               <Link to="/signup" className={`inline-flex ${authPrimaryButtonClass}`}>
                 Start sign-up again
               </Link>
-              <Link
-                to="/login"
-                className={`inline-flex ${authSecondaryButtonClass}`}
-              >
+              <Link to="/login" className={`inline-flex ${authSecondaryButtonClass}`}>
                 Back to sign in
               </Link>
             </div>
