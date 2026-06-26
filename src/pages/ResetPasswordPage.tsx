@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -9,6 +9,7 @@ import {
   authLinkClass,
   authPrimaryButtonClass,
   authRequiredClass,
+  authSecondaryButtonClass,
   authSubheadingClass,
 } from '../components/auth/auth-classes'
 import { AuthLayout } from '../components/AuthLayout'
@@ -17,32 +18,73 @@ import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
-export function SignUpPage() {
+type ResetStatus = 'ready' | 'invalid' | 'submitting'
+
+export function ResetPasswordPage() {
   const navigate = useNavigate()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [status, setStatus] = useState<ResetStatus>('ready')
   const [error, setError] = useState<string | null>(null)
-  const isFormReady =
-    fullName.trim().length > 0 &&
-    email.trim().length > 0 &&
-    password.length > 0 &&
-    confirmPassword.length > 0
+  const [credentials, setCredentials] = useState<{
+    code?: string
+    token_hash?: string
+    accessToken?: string
+    refreshToken?: string
+  } | null>(null)
+
+  const isFormReady = password.length >= 8 && confirmPassword.length > 0
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+
+    const authError =
+      searchParams.get('error_description') ??
+      hashParams.get('error_description') ??
+      searchParams.get('error') ??
+      hashParams.get('error')
+
+    if (authError) {
+      setStatus('invalid')
+      setError(decodeURIComponent(authError.replace(/\+/g, ' ')))
+      return
+    }
+
+    const code = searchParams.get('code') ?? undefined
+    const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token') ?? undefined
+    const accessToken = hashParams.get('access_token') ?? undefined
+    const refreshToken = hashParams.get('refresh_token') ?? undefined
+
+    if (!code && !tokenHash && !(accessToken && refreshToken)) {
+      setStatus('invalid')
+      setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
+      return
+    }
+
+    setCredentials({
+      code,
+      token_hash: tokenHash,
+      accessToken,
+      refreshToken,
+    })
+    window.history.replaceState({}, document.title, '/reset-password')
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const trimmedName = fullName.trim()
-    const trimmedEmail = email.trim()
+    if (!credentials) {
+      setError('This reset link is invalid or has expired.')
+      return
+    }
 
-    if (!trimmedName || !trimmedEmail || !password) {
-      const message = 'Please fill in all required fields.'
+    if (password.length < 8) {
+      const message = 'Password must be at least 8 characters.'
       setError(message)
       showToast(message, 'error')
       return
@@ -55,45 +97,52 @@ export function SignUpPage() {
       return
     }
 
-    if (password.length < 8) {
-      const message = 'Password must be at least 8 characters.'
-      setError(message)
-      showToast(message, 'error')
-      return
-    }
-
-    setSubmitting(true)
+    setStatus('submitting')
     setError(null)
 
     try {
-      const result = await api.signUp({ fullName: trimmedName, email: trimmedEmail, password })
-
-      if (!result.needsEmailVerification && result.user.emailConfirmed) {
-        setSessionUser(result.user)
-        navigate('/dashboard')
-        showToast('Account created successfully.', 'success')
-        return
-      }
-
-      navigate('/signup/check-email', { state: { email: trimmedEmail } })
-      showToast('Sign-up started. Check your email to verify your account.', 'success')
+      const { user } = await api.resetPassword({
+        password,
+        ...credentials,
+      })
+      setSessionUser(user)
+      showToast('Password updated. Welcome back!', 'success')
+      navigate('/dashboard', { replace: true })
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Sign-up failed. Please try again.'
+      setStatus('ready')
+      const message = err instanceof ApiError ? err.message : 'Password reset failed. Please try again.'
       setError(message)
       showToast(message, 'error')
-    } finally {
-      setSubmitting(false)
     }
+  }
+
+  if (status === 'invalid') {
+    return (
+      <AuthLayout>
+        <div className="space-y-5 text-center">
+          <div className="space-y-1">
+            <h1 className={authHeadingClass}>Reset link expired</h1>
+            <p className={authSubheadingClass}>{error}</p>
+          </div>
+          <div className="space-y-3">
+            <Link to="/forgot-password" className={`inline-flex ${authPrimaryButtonClass}`}>
+              Request a new link
+            </Link>
+            <Link to="/login" className={`inline-flex ${authSecondaryButtonClass}`}>
+              Back to sign in
+            </Link>
+          </div>
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (
     <AuthLayout>
       <form className="space-y-5" onSubmit={handleSubmit}>
         <div className="space-y-1">
-          <h1 className={authHeadingClass}>Sign up</h1>
-          <p className={authSubheadingClass}>
-            Sign-up includes email verification. Submit the form and we&apos;ll send a link to finish.
-          </p>
+          <h1 className={authHeadingClass}>Choose a new password</h1>
+          <p className={authSubheadingClass}>Enter and confirm your new password below.</p>
         </div>
 
         {error ? (
@@ -103,42 +152,8 @@ export function SignUpPage() {
         ) : null}
 
         <div className="space-y-2">
-          <label htmlFor="name" className={authLabelClass}>
-            Full name<span className={authRequiredClass}>*</span>
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            autoComplete="name"
-            disabled={submitting}
-            value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
-            className={authInputClass}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="email" className={authLabelClass}>
-            Email<span className={authRequiredClass}>*</span>
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            disabled={submitting}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={authInputClass}
-          />
-        </div>
-
-        <div className="space-y-2">
           <label htmlFor="password" className={authLabelClass}>
-            Password<span className={authRequiredClass}>*</span>
+            New password<span className={authRequiredClass}>*</span>
           </label>
           <div className="relative">
             <input
@@ -146,9 +161,8 @@ export function SignUpPage() {
               name="password"
               type={showPassword ? 'text' : 'password'}
               required
-              minLength={8}
               autoComplete="new-password"
-              disabled={submitting}
+              disabled={status === 'submitting'}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className={`${authInputClass} pr-10`}
@@ -157,7 +171,7 @@ export function SignUpPage() {
               type="button"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showPassword}
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() => setShowPassword((value) => !value)}
               className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--db-muted)] transition-colors duration-200 hover:text-[var(--db-text)]"
             >
               <EyeIcon open={showPassword} />
@@ -175,9 +189,8 @@ export function SignUpPage() {
               name="confirmPassword"
               type={showConfirmPassword ? 'text' : 'password'}
               required
-              minLength={8}
               autoComplete="new-password"
-              disabled={submitting}
+              disabled={status === 'submitting'}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               className={`${authInputClass} pr-10`}
@@ -186,7 +199,7 @@ export function SignUpPage() {
               type="button"
               aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               aria-pressed={showConfirmPassword}
-              onClick={() => setShowConfirmPassword((v) => !v)}
+              onClick={() => setShowConfirmPassword((value) => !value)}
               className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--db-muted)] transition-colors duration-200 hover:text-[var(--db-text)]"
             >
               <EyeIcon open={showConfirmPassword} />
@@ -194,21 +207,13 @@ export function SignUpPage() {
           </div>
         </div>
 
-        <button type="submit" disabled={submitting || !isFormReady} className={authPrimaryButtonClass}>
-          {submitting ? 'Starting sign-up...' : 'Sign up'}
+        <button type="submit" disabled={status === 'submitting' || !isFormReady} className={authPrimaryButtonClass}>
+          {status === 'submitting' ? 'Updating password...' : 'Update password'}
         </button>
 
         <p className="text-center text-sm text-[var(--db-muted)]">
-          Already have an account?{' '}
           <Link to="/login" className={authLinkClass}>
-            Sign in
-          </Link>
-        </p>
-
-        <p className="text-center text-sm text-[var(--db-muted)]">
-          Forgot your password?{' '}
-          <Link to="/forgot-password" className={authLinkClass}>
-            Reset it
+            Back to sign in
           </Link>
         </p>
       </form>

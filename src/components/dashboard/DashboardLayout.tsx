@@ -94,7 +94,7 @@ export function DashboardLayout() {
       )}
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col transition-colors duration-200">
-        <ChatWindow activeTab={activeTab} showHeader={!isPhone} />
+        <ChatWindow activeTab={activeTab} showHeader={!isPhone} userName={displayName ?? ''} />
       </main>
     </div>
   )

@@ -14,6 +14,12 @@ export function AuthCallbackRedirect() {
     hashParams.has('error') ||
     hashParams.has('error_description')
 
+  const verifyType = searchParams.get('type') ?? hashParams.get('type')
+
+  if (hasAuthCallback && verifyType === 'recovery') {
+    return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />
+  }
+
   if (hasAuthCallback) {
     return <Navigate to={`/signup/verify${location.search}${location.hash}`} replace />
   }

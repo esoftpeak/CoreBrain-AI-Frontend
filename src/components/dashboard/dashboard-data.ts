@@ -23,6 +23,15 @@ export type DashboardTab = {
   description: string
 }
 
+export const TAB_AVATARS: Record<DashboardTabId, { src: string; alt: string }> = {
+  dashboard: { src: '/alfred-avatar.png', alt: 'Alfred assistant' },
+  strategy: { src: '/avatar-strategy.png', alt: 'Strategy expert' },
+  storytelling: { src: '/avatar-storytelling.png', alt: 'Storytelling expert' },
+  funnel: { src: '/avatar-funnel.png', alt: 'Funnel architect' },
+  copywriter: { src: '/avatar-copywriter.png', alt: 'Copywriter' },
+  publications: { src: '/avatar-publications.png', alt: 'Publications expert' },
+}
+
 export const DASHBOARD_TABS: DashboardTab[] = [
   {
     id: 'dashboard',

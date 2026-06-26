@@ -94,9 +94,14 @@ export function LoginPage() {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className={authLabelClass}>
-            Password<span className={authRequiredClass}>*</span>
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="password" className={authLabelClass}>
+              Password<span className={authRequiredClass}>*</span>
+            </label>
+            <Link to="/forgot-password" className={`${authLinkClass} text-xs`}>
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <input
               id="password"

@@ -16,6 +16,12 @@ const SignUpCheckEmailPage = lazy(() =>
 const SignUpVerifyPage = lazy(() =>
   import('./pages/SignUpVerifyPage').then((module) => ({ default: module.SignUpVerifyPage })),
 )
+const ForgotPasswordPage = lazy(() =>
+  import('./pages/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })),
+)
+const ResetPasswordPage = lazy(() =>
+  import('./pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })),
+)
 
 function RouteFallback() {
   return (
@@ -51,6 +57,15 @@ function App() {
                   }
                 />
                 <Route path="/register" element={<Navigate to="/signup" replace />} />
+                <Route
+                  path="/forgot-password"
+                  element={
+                    <GuestRoute>
+                      <ForgotPasswordPage />
+                    </GuestRoute>
+                  }
+                />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/signup/check-email" element={<SignUpCheckEmailPage />} />
                 <Route path="/signup/verify" element={<SignUpVerifyPage />} />
                 <Route path="/auth/verify" element={<SignUpVerifyPage />} />

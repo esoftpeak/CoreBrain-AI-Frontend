@@ -138,6 +138,27 @@ export const api = {
     })
   },
 
+  forgotPassword(body: { email: string }) {
+    return request<{ ok: boolean }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
+  resetPassword(body: {
+    password: string
+    code?: string
+    token_hash?: string
+    token?: string
+    accessToken?: string
+    refreshToken?: string
+  }) {
+    return request<VerifyResponse>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
   getMe() {
     return request<MeResponse>('/api/me')
   },

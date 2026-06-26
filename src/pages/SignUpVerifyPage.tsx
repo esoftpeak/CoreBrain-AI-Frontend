@@ -38,9 +38,14 @@ export function SignUpVerifyPage() {
 
       const code = searchParams.get('code')
       const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token')
-      const verifyType = searchParams.get('type') ?? 'signup'
+      const verifyType = searchParams.get('type') ?? hashParams.get('type') ?? 'signup'
       const accessToken = hashParams.get('access_token') ?? undefined
       const refreshToken = hashParams.get('refresh_token') ?? undefined
+
+      if (verifyType === 'recovery') {
+        navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true })
+        return
+      }
 
       if (!code && !tokenHash && !(accessToken && refreshToken)) {
         if (!mounted) return

@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { useToast } from '../../context/ToastProvider'
-import { DASHBOARD_TABS, AI_MODELS, type DashboardTabId } from './dashboard-data'
+import { TAB_AVATARS, AI_MODELS, type DashboardTabId } from './dashboard-data'
 import { ModelSelector } from './ModelSelector'
 import { RippleButton } from './RippleButton'
 import { ThemeToggle } from './ThemeToggle'
@@ -9,21 +9,13 @@ import { IconClose, IconMic, IconPlus } from './icons'
 type ChatWindowProps = {
   activeTab: DashboardTabId
   showHeader?: boolean
+  userName?: string
 }
 
 type AttachedFile = {
   id: string
   file: File
   previewUrl?: string
-}
-
-const TAB_GREETINGS: Record<DashboardTabId, string> = {
-  dashboard: "What's on the agenda today?",
-  strategy: 'What strategy would you like to build?',
-  storytelling: 'What story should we tell?',
-  funnel: 'What funnel are we architecting?',
-  copywriter: 'What copy do you need written?',
-  publications: 'What content are we publishing?',
 }
 
 const ACCEPTED_FILE_TYPES =
@@ -36,7 +28,13 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export function ChatWindow({ activeTab, showHeader = true }: ChatWindowProps) {
+function greetingFirstName(displayName: string) {
+  const trimmed = displayName.trim()
+  if (!trimmed) return 'there'
+  return trimmed.split(/\s+/)[0]
+}
+
+export function ChatWindow({ activeTab, showHeader = true, userName = '' }: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { showToast } = useToast()
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0])
@@ -44,7 +42,7 @@ export function ChatWindow({ activeTab, showHeader = true }: ChatWindowProps) {
   const [message, setMessage] = useState('')
   const [attachments, setAttachments] = useState<AttachedFile[]>([])
 
-  const activeTabMeta = DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0]
+  const tabAvatar = TAB_AVATARS[activeTab]
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -118,11 +116,16 @@ export function ChatWindow({ activeTab, showHeader = true }: ChatWindowProps) {
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 py-3 sm:px-6 sm:py-6">
         <div className="w-full max-w-3xl">
           <div className="flex flex-col items-center justify-center text-center">
-            <h1 className="text-2xl font-medium text-[var(--db-text)] sm:text-3xl md:text-[2rem]">
-              {TAB_GREETINGS[activeTab]}
+            <img
+              src={tabAvatar.src}
+              alt={tabAvatar.alt}
+              className="mb-5 h-24 w-24 rounded-2xl object-cover object-top shadow-sm sm:h-28 sm:w-28"
+            />
+            <h1 className="text-2xl font-semibold text-[var(--db-text)] sm:text-3xl">
+              Hi, {greetingFirstName(userName)}
             </h1>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--db-muted)]">
-              {activeTabMeta.description}. Choose a model below and start your conversation.
+            <p className="mt-2 text-sm leading-relaxed text-[var(--db-muted)] sm:text-base">
+              How can I help you today?
             </p>
           </div>
         </div>
