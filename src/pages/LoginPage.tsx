@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   authErrorClass,
   authHeadingClass,
@@ -10,6 +10,7 @@ import {
   authPrimaryButtonClass,
   authRequiredClass,
   authSubheadingClass,
+  authSuccessClass,
 } from '../components/auth/auth-classes'
 import { AuthLayout } from '../components/AuthLayout'
 import { EyeIcon } from '../components/EyeIcon'
@@ -19,6 +20,7 @@ import { ApiError, api } from '../lib/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [email, setEmail] = useState('')
@@ -26,7 +28,28 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verifiedNotice, setVerifiedNotice] = useState<string | null>(null)
   const isFormReady = email.trim().length > 0 && password.length > 0
+
+  useEffect(() => {
+    if (searchParams.get('email_verified') === '1') {
+      setVerifiedNotice('Your email is verified. Sign in with your password to open your dashboard.')
+    }
+
+    try {
+      const raw = sessionStorage.getItem('auth_flash')
+      if (raw) {
+        sessionStorage.removeItem('auth_flash')
+        const flash = JSON.parse(raw) as { type?: string; message?: string }
+        if (flash.type === 'success' && flash.message) {
+          setVerifiedNotice(flash.message)
+          showToast(flash.message, 'success')
+        }
+      }
+    } catch {
+      // Ignore invalid flash payload.
+    }
+  }, [searchParams, showToast])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -69,6 +92,12 @@ export function LoginPage() {
           <h1 className={authHeadingClass}>Sign in</h1>
           <p className={authSubheadingClass}>Enter your email below to sign in to your account</p>
         </div>
+
+        {verifiedNotice ? (
+          <p className={authSuccessClass} role="status">
+            {verifiedNotice}
+          </p>
+        ) : null}
 
         {error ? (
           <p className={authErrorClass} role="alert">

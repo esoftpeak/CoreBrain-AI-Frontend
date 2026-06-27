@@ -145,6 +145,18 @@ export const api = {
     })
   },
 
+  prepareRecovery(body: {
+    token_hash?: string
+    token?: string
+    accessToken?: string
+    refreshToken?: string
+  }) {
+    return request<{ ok: boolean }>('/api/auth/prepare-recovery', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
+
   resetPassword(body: {
     password: string
     code?: string

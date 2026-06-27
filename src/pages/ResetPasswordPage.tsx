@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
+  authActionStackClass,
   authErrorClass,
   authHeadingClass,
   authInputClass,
@@ -18,7 +19,7 @@ import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
 
-type ResetStatus = 'ready' | 'invalid' | 'submitting'
+type ResetStatus = 'loading' | 'ready' | 'invalid' | 'submitting'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -28,57 +29,85 @@ export function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [status, setStatus] = useState<ResetStatus>('ready')
+  const [status, setStatus] = useState<ResetStatus>('loading')
   const [error, setError] = useState<string | null>(null)
-  const [credentials, setCredentials] = useState<{
-    code?: string
-    token_hash?: string
-    accessToken?: string
-    refreshToken?: string
-  } | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
 
   const isFormReady = password.length >= 8 && confirmPassword.length > 0
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search)
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    let mounted = true
 
-    const authError =
-      searchParams.get('error_description') ??
-      hashParams.get('error_description') ??
-      searchParams.get('error') ??
-      hashParams.get('error')
+    async function prepareReset() {
+      const searchParams = new URLSearchParams(window.location.search)
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
 
-    if (authError) {
-      setStatus('invalid')
-      setError(decodeURIComponent(authError.replace(/\+/g, ' ')))
-      return
+      const authError =
+        searchParams.get('error_description') ??
+        hashParams.get('error_description') ??
+        searchParams.get('error') ??
+        hashParams.get('error')
+
+      if (authError) {
+        if (!mounted) return
+        setStatus('invalid')
+        setError(decodeURIComponent(authError.replace(/\+/g, ' ')))
+        return
+      }
+
+      const code = searchParams.get('code') ?? undefined
+      const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token') ?? undefined
+      const accessToken = hashParams.get('access_token') ?? undefined
+      const refreshToken = hashParams.get('refresh_token') ?? undefined
+
+      if (code && !tokenHash && !(accessToken && refreshToken)) {
+        if (!mounted) return
+        setStatus('invalid')
+        setError(
+          'This reset link uses an outdated format. Request a new password reset email and open the latest link.',
+        )
+        return
+      }
+
+      try {
+        if (tokenHash || (accessToken && refreshToken)) {
+          await api.prepareRecovery({
+            token_hash: tokenHash,
+            accessToken,
+            refreshToken,
+          })
+        } else {
+          const { user } = await api.getSession()
+          if (!user) {
+            if (!mounted) return
+            setStatus('invalid')
+            setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
+            return
+          }
+        }
+
+        if (!mounted) return
+        setSessionReady(true)
+        setStatus('ready')
+        window.history.replaceState({}, document.title, '/reset-password')
+      } catch (err) {
+        if (!mounted) return
+        setStatus('invalid')
+        setError(err instanceof ApiError ? err.message : 'This reset link is invalid or has expired.')
+      }
     }
 
-    const code = searchParams.get('code') ?? undefined
-    const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token') ?? undefined
-    const accessToken = hashParams.get('access_token') ?? undefined
-    const refreshToken = hashParams.get('refresh_token') ?? undefined
+    void prepareReset()
 
-    if (!code && !tokenHash && !(accessToken && refreshToken)) {
-      setStatus('invalid')
-      setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
-      return
+    return () => {
+      mounted = false
     }
-
-    setCredentials({
-      code,
-      token_hash: tokenHash,
-      accessToken,
-      refreshToken,
-    })
-    window.history.replaceState({}, document.title, '/reset-password')
   }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!credentials) {
+    if (!sessionReady) {
       setError('This reset link is invalid or has expired.')
       return
     }
@@ -101,10 +130,7 @@ export function ResetPasswordPage() {
     setError(null)
 
     try {
-      const { user } = await api.resetPassword({
-        password,
-        ...credentials,
-      })
+      const { user } = await api.resetPassword({ password })
       setSessionUser(user)
       showToast('Password updated. Welcome back!', 'success')
       navigate('/dashboard', { replace: true })
@@ -116,6 +142,20 @@ export function ResetPasswordPage() {
     }
   }
 
+  if (status === 'loading') {
+    return (
+      <AuthLayout>
+        <div className="space-y-5 text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-200" />
+          <div className="space-y-1">
+            <h1 className={authHeadingClass}>Preparing password reset</h1>
+            <p className={authSubheadingClass}>Checking your reset link...</p>
+          </div>
+        </div>
+      </AuthLayout>
+    )
+  }
+
   if (status === 'invalid') {
     return (
       <AuthLayout>
@@ -124,11 +164,11 @@ export function ResetPasswordPage() {
             <h1 className={authHeadingClass}>Reset link expired</h1>
             <p className={authSubheadingClass}>{error}</p>
           </div>
-          <div className="space-y-3">
-            <Link to="/forgot-password" className={`inline-flex ${authPrimaryButtonClass}`}>
+          <div className={authActionStackClass}>
+            <Link to="/forgot-password" className={authPrimaryButtonClass}>
               Request a new link
             </Link>
-            <Link to="/login" className={`inline-flex ${authSecondaryButtonClass}`}>
+            <Link to="/login" className={authSecondaryButtonClass}>
               Back to sign in
             </Link>
           </div>

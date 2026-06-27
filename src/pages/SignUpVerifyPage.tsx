@@ -1,23 +1,45 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
-import { authHeadingClass, authMutedTextClass, authPrimaryButtonClass, authSecondaryButtonClass } from '../components/auth/auth-classes'
+import {
+  authActionStackClass,
+  authHeadingClass,
+  authMutedTextClass,
+  authPrimaryButtonClass,
+  authSecondaryButtonClass,
+} from '../components/auth/auth-classes'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
+import {
+  isAlreadyVerifiedMessage,
+  isPkceVerificationError,
+  redirectToSignInAfterVerification,
+} from '../lib/auth-flow'
 import { notifyVerificationComplete } from '../lib/auth-sync'
 
 type VerifyStatus = 'verifying' | 'success' | 'error'
 
 export function SignUpVerifyPage() {
-  const navigate = useNavigate()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
   const [status, setStatus] = useState<VerifyStatus>('verifying')
   const [message, setMessage] = useState('Verifying your email to finish sign-up...')
 
   useEffect(() => {
-    let mounted = true
+    let active = true
+
+    async function completeSignIn(user: Awaited<ReturnType<typeof api.verify>>['user']) {
+      setSessionUser(user)
+      notifyVerificationComplete()
+
+      if (!active) return
+      setStatus('success')
+      setMessage('Your email is verified. Taking you to your dashboard...')
+      window.history.replaceState({}, document.title, '/signup/verify')
+      showToast('Sign-up complete. Welcome to CoreBrain.ai!', 'success')
+      window.location.replace('/dashboard')
+    }
 
     async function finishSignUp() {
       const searchParams = new URLSearchParams(window.location.search)
@@ -30,9 +52,14 @@ export function SignUpVerifyPage() {
         hashParams.get('error')
 
       if (authError) {
-        if (!mounted) return
+        const decodedError = decodeURIComponent(authError.replace(/\+/g, ' '))
+        if (isPkceVerificationError(decodedError) || isAlreadyVerifiedMessage(decodedError)) {
+          redirectToSignInAfterVerification()
+          return
+        }
+        if (!active) return
         setStatus('error')
-        setMessage(decodeURIComponent(authError.replace(/\+/g, ' ')))
+        setMessage(decodedError)
         return
       }
 
@@ -43,12 +70,27 @@ export function SignUpVerifyPage() {
       const refreshToken = hashParams.get('refresh_token') ?? undefined
 
       if (verifyType === 'recovery') {
-        navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true })
+        window.location.replace(`/reset-password${window.location.search}${window.location.hash}`)
         return
       }
 
-      if (!code && !tokenHash && !(accessToken && refreshToken)) {
-        if (!mounted) return
+      try {
+        const existingSession = await api.getSession()
+        if (existingSession.user?.emailConfirmed) {
+          await completeSignIn(existingSession.user)
+          return
+        }
+      } catch {
+        // Continue with link verification below.
+      }
+
+      if (code && !tokenHash && !(accessToken && refreshToken)) {
+        redirectToSignInAfterVerification()
+        return
+      }
+
+      if (!tokenHash && !(accessToken && refreshToken)) {
+        if (!active) return
         setStatus('error')
         setMessage('This sign-up link is invalid or has expired. Start sign-up again to receive a new link.')
         return
@@ -56,25 +98,37 @@ export function SignUpVerifyPage() {
 
       try {
         const { user } = await api.verify({
-          code: code ?? undefined,
           token_hash: tokenHash ?? undefined,
           type: verifyType,
           accessToken,
           refreshToken,
         })
-        setSessionUser(user)
-        notifyVerificationComplete()
-
-        if (!mounted) return
-        setStatus('success')
-        setMessage('Your email is verified. Taking you to your dashboard...')
-        window.history.replaceState({}, document.title, '/signup/verify')
-        showToast('Sign-up complete. Welcome to CoreBrain.ai!', 'success')
-        navigate('/dashboard', { replace: true })
+        await completeSignIn(user)
       } catch (err) {
-        if (!mounted) return
-        setStatus('error')
         const errorMessage = err instanceof ApiError ? err.message : 'Verification failed. Please try again.'
+
+        if (
+          err instanceof ApiError &&
+          (err.code === 'EMAIL_VERIFIED_SIGN_IN' ||
+            isPkceVerificationError(errorMessage) ||
+            isAlreadyVerifiedMessage(errorMessage))
+        ) {
+          redirectToSignInAfterVerification(errorMessage)
+          return
+        }
+
+        try {
+          const existingSession = await api.getSession()
+          if (existingSession.user?.emailConfirmed) {
+            await completeSignIn(existingSession.user)
+            return
+          }
+        } catch {
+          // Fall through to error UI.
+        }
+
+        if (!active) return
+        setStatus('error')
         setMessage(errorMessage)
         showToast(errorMessage, 'error')
       }
@@ -83,9 +137,9 @@ export function SignUpVerifyPage() {
     void finishSignUp()
 
     return () => {
-      mounted = false
+      active = false
     }
-  }, [navigate, setSessionUser, showToast])
+  }, [setSessionUser, showToast])
 
   return (
     <AuthLayout>
@@ -126,12 +180,12 @@ export function SignUpVerifyPage() {
               <h1 className={authHeadingClass}>Sign-up not completed</h1>
               <p className={authMutedTextClass}>{message}</p>
             </div>
-            <div className="space-y-3">
-              <Link to="/signup" className={`inline-flex ${authPrimaryButtonClass}`}>
-                Start sign-up again
+            <div className={authActionStackClass}>
+              <Link to="/login" className={authPrimaryButtonClass}>
+                Sign in
               </Link>
-              <Link to="/login" className={`inline-flex ${authSecondaryButtonClass}`}>
-                Back to sign in
+              <Link to="/signup" className={authSecondaryButtonClass}>
+                Start sign-up again
               </Link>
             </div>
           </>
