@@ -26,6 +26,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
+  const preparationStartedRef = useRef(false)
   const recoveryCredentialsRef = useRef<RecoveryCredentials | null>(null)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -38,9 +39,27 @@ export function ResetPasswordPage() {
   const isFormReady = password.length >= 8 && confirmPassword.length > 0
 
   useEffect(() => {
+    if (preparationStartedRef.current) {
+      return
+    }
+    preparationStartedRef.current = true
+
     let mounted = true
 
     async function prepareReset() {
+      try {
+        const { user } = await api.getSession()
+        if (user) {
+          if (!mounted) return
+          setSessionReady(true)
+          setStatus('ready')
+          window.history.replaceState({}, document.title, '/reset-password')
+          return
+        }
+      } catch {
+        // Continue with link verification below.
+      }
+
       const parsed = parseRecoveryLink(window.location.search, window.location.hash)
 
       if (parsed.ok === false) {
