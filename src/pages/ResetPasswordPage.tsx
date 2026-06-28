@@ -52,14 +52,31 @@ export function ResetPasswordPage() {
 
       if (parsed.credentials) {
         recoveryCredentialsRef.current = parsed.credentials
-        if (!mounted) return
-        setSessionReady(true)
-        setStatus('ready')
-        window.history.replaceState({}, document.title, '/reset-password')
+        const credentials = parsed.credentials
+
+        try {
+          await api.prepareRecovery({
+            code: credentials.code,
+            token_hash: credentials.token_hash,
+            accessToken: credentials.accessToken,
+            refreshToken: credentials.refreshToken,
+          })
+
+          if (!mounted) return
+          recoveryCredentialsRef.current = null
+          setSessionReady(true)
+          setStatus('ready')
+          window.history.replaceState({}, document.title, '/reset-password')
+        } catch (err) {
+          if (!mounted) return
+          setStatus('invalid')
+          setError(err instanceof ApiError ? err.message : 'This reset link is invalid or has expired.')
+        }
         return
       }
 
       try {
+        await api.prepareRecovery({})
         const { user } = await api.getSession()
         if (!user) {
           if (!mounted) return
@@ -115,10 +132,14 @@ export function ResetPasswordPage() {
       const credentials = recoveryCredentialsRef.current
       const { user } = await api.resetPassword({
         password,
-        code: credentials?.code,
-        token_hash: credentials?.token_hash,
-        accessToken: credentials?.accessToken,
-        refreshToken: credentials?.refreshToken,
+        ...(credentials
+          ? {
+              code: credentials.code,
+              token_hash: credentials.token_hash,
+              accessToken: credentials.accessToken,
+              refreshToken: credentials.refreshToken,
+            }
+          : {}),
       })
       setSessionUser(user)
       showToast('Password updated. Welcome back!', 'success')

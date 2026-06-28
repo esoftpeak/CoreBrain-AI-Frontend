@@ -146,6 +146,7 @@ export const api = {
   },
 
   prepareRecovery(body: {
+    code?: string
     token_hash?: string
     token?: string
     accessToken?: string

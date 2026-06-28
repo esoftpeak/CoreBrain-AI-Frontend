@@ -28,15 +28,7 @@ export function parseRecoveryLink(search: string, hash: string): ParsedRecoveryL
   const accessToken = hashParams.get('access_token') ?? undefined
   const refreshToken = hashParams.get('refresh_token') ?? undefined
 
-  if (code && !tokenHash && !(accessToken && refreshToken)) {
-    return {
-      ok: false,
-      error:
-        'This reset link uses an outdated format. Request a new password reset email and open the latest link.',
-    }
-  }
-
-  if (tokenHash || (accessToken && refreshToken) || code) {
+  if (tokenHash || accessToken || code) {
     return {
       ok: true,
       credentials: {
