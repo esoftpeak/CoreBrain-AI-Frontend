@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -18,6 +18,7 @@ import { EyeIcon } from '../components/EyeIcon'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { ApiError, api } from '../lib/api'
+import { parseRecoveryLink, type RecoveryCredentials } from '../lib/recovery-credentials'
 
 type ResetStatus = 'loading' | 'ready' | 'invalid' | 'submitting'
 
@@ -25,6 +26,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate()
   const { setSessionUser } = useAuth()
   const { showToast } = useToast()
+  const recoveryCredentialsRef = useRef<RecoveryCredentials | null>(null)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -39,51 +41,31 @@ export function ResetPasswordPage() {
     let mounted = true
 
     async function prepareReset() {
-      const searchParams = new URLSearchParams(window.location.search)
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const parsed = parseRecoveryLink(window.location.search, window.location.hash)
 
-      const authError =
-        searchParams.get('error_description') ??
-        hashParams.get('error_description') ??
-        searchParams.get('error') ??
-        hashParams.get('error')
-
-      if (authError) {
+      if (parsed.ok === false) {
         if (!mounted) return
         setStatus('invalid')
-        setError(decodeURIComponent(authError.replace(/\+/g, ' ')))
+        setError(parsed.error)
         return
       }
 
-      const code = searchParams.get('code') ?? undefined
-      const tokenHash = searchParams.get('token_hash') ?? searchParams.get('token') ?? undefined
-      const accessToken = hashParams.get('access_token') ?? undefined
-      const refreshToken = hashParams.get('refresh_token') ?? undefined
-
-      if (code && !tokenHash && !(accessToken && refreshToken)) {
+      if (parsed.credentials) {
+        recoveryCredentialsRef.current = parsed.credentials
         if (!mounted) return
-        setStatus('invalid')
-        setError(
-          'This reset link uses an outdated format. Request a new password reset email and open the latest link.',
-        )
+        setSessionReady(true)
+        setStatus('ready')
+        window.history.replaceState({}, document.title, '/reset-password')
         return
       }
 
       try {
-        if (tokenHash || (accessToken && refreshToken)) {
-          await api.prepareRecovery({
-            token_hash: tokenHash,
-            accessToken,
-            refreshToken,
-          })
-        } else {
-          const { user } = await api.getSession()
-          if (!user) {
-            if (!mounted) return
-            setStatus('invalid')
-            setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
-            return
-          }
+        const { user } = await api.getSession()
+        if (!user) {
+          if (!mounted) return
+          setStatus('invalid')
+          setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
+          return
         }
 
         if (!mounted) return
@@ -130,7 +112,14 @@ export function ResetPasswordPage() {
     setError(null)
 
     try {
-      const { user } = await api.resetPassword({ password })
+      const credentials = recoveryCredentialsRef.current
+      const { user } = await api.resetPassword({
+        password,
+        code: credentials?.code,
+        token_hash: credentials?.token_hash,
+        accessToken: credentials?.accessToken,
+        refreshToken: credentials?.refreshToken,
+      })
       setSessionUser(user)
       showToast('Password updated. Welcome back!', 'success')
       navigate('/dashboard', { replace: true })
